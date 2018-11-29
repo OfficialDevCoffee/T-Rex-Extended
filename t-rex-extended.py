@@ -39,13 +39,12 @@ def drawText(text, size, color, x, y, align):
 
 def initGame():
     global gamepad, clock
-    global rex, cactus, bird, item, cloud, ground1, ground2, replay
+    global rex, cactus, bird, cloud, ground1, ground2, replay
     global btn_sound, gameover_sound, score_sound
 
     rex = []
     cactus = [[], []]
     bird = []
-    item = []
 
     pygame.init()
 
@@ -83,22 +82,96 @@ def initGame():
     score_sound = pygame.mixer.Sound('sound/score-reached.wav')
 
     clock = pygame.time.Clock()
-    runGame()
+    mainScreen()
+    pass
+
+def mainScreen():
+    global gamepad, ground1
+    
+    i = 1
+    msgDisp = False
+    crashed = False
+    while not crashed:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    runGame()
+                    pass
+                pass
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+                pass
+            pass
+        if i % 30 == 0:
+            if msgDisp:
+                i = 0
+                msgDisp = False
+                pass
+            else:
+                msgDisp = True
+                pass
+            pass
+        i += 1
+
+        gamepad.fill(color.white)
+        drawObject(ground1, 0, pad_height - 80)
+        drawText("T-Rex Runner", 100, color.dimgray, pad_width / 2, pad_height / 2 - 90, center)
+        drawText("Extended | By Studio.Chem", 50, color.dimgray, pad_width / 2, pad_height / 2 - 45, center)
+        drawText("Copyright: Studio.Chem, 2018-2019 | stdio.chem@gmail.com", 30, color.dimgray, pad_width / 2, pad_height - 20, center)
+        if msgDisp:
+            drawText("Press SPACE To Start", 50, color.dimgray, pad_width / 2, pad_height / 2 + 30, center)
+            pass
+        pygame.display.update()
+        clock.tick(60)
+        pass
+    pass
+
+def gameOver():
+    global gamepad, replay
+    global gameover_sound
+
+    drawText("GAME OVER", 100, color.dimgray, pad_width / 2, pad_height / 2 - 90, center)
+    drawObject(replay, pad_width / 2 - 40, pad_height / 2 - 50)
+    drawText("Replay? (Y/N)", 50, color.dimgray, pad_width / 2, pad_height / 2 + 40, center)
+    pygame.display.update()
+    pygame.mixer.Sound.play(gameover_sound)
+    crashed = False
+    while not crashed:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_y:
+                    runGame()
+                    pass
+                elif event.key == pygame.K_n:
+                    pygame.quit()
+                    quit()
+                    pass
+                pass
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+                pass
+            pass
+        pass
     pass
 
 def runGame():
     global gamepad, clock
-    global rex, cactus, bird, item, cloud, ground1, ground2, replay
+    global rex, cactus, bird, cloud, ground1, ground2
     global btn_sound, score_sound
 
+    pygame.mixer.Sound.play(score_sound)
+
     score = 0
+    score_filter = 100
 
     cactus_txy = []    
     bird_txy = []
     cloud_txy = []
 
     rex_x = 60
-    rex_y = pad_height - 130
+    rex_y = pad_height - 138
     rex_y_change = 0
     rex_canjump = True
     rex_t_cooltime = 5
@@ -109,15 +182,35 @@ def runGame():
 
     speed = 5
 
+    score_cooltime = 0
+
+    cactus_cooltime = 0
+    cactus_spawntime = 10
+
+    bird_cooltime = 0
+    bird_spawntime = 10
+    bird_shapetime = 0
+
+    text_flag = False
+    text_show = True
+    text_cooltime = 0
+
+    cloud_cooltime = 0
+    cloud_spawntime = 10
+
+    gameovered = False
+
     crashed = False
     while not crashed:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and rex_canjump:
+                    pygame.mixer.Sound.play(btn_sound)
                     rex_y_change = -14
                     rex_canjump = False
                     pass
                 elif event.key == pygame.K_a and rex_canjump:
+                    pygame.mixer.Sound.play(btn_sound)
                     rex_y_change = -11.5
                     rex_canjump = False
                 pass
@@ -126,24 +219,81 @@ def runGame():
                 pass
             pass
 
-        score += 0.2
-
-        if int(score) % 100 == 0 and score >= 100:
-            speed += 0.2
+        if gameovered:
+            gameOver()
+            pass
+        
+        if text_flag:
+            text_cooltime += 1
+            if text_cooltime > 70:
+                text_cooltime = 0
+                score_cooltime = 9
+                text_flag = False
+                pass
+            if text_cooltime % 10 == 0:
+                if text_show:
+                    text_show = False
+                    pass
+                else:
+                    text_show = True
+                    pass
+                pass
+            pass
+        
+        score_cooltime +=1
+        if score_cooltime == 10 and not text_flag: 
+            score_cooltime = 0
+            score += 1
+            pass
+        elif text_flag:
+            score_cooltime = 0
             pass
 
-        print((score, speed))
+        if score % 100 == 0 and score != 0:
+            text_flag = True
+            pass
+        
+        if score >= score_filter:
+            pygame.mixer.Sound.play(score_sound)
+            speed += 1
+            score_filter += 100
+            pass
 
-        cactus_spawn = random.randrange(0, int(1000 - speed * 5))
-        cactus_type = random.randrange(0, 6)
-        cactus_size = random.randrange(0,2)
-        if cactus_spawn % 120 == 0:
-            if cactus_type >= 0 and cactus_type <= 3 and cactus_size == 0:
+        if cactus_cooltime == cactus_spawntime:
+            cactus_size = random.randrange(0,2)
+            if cactus_size == 0:
+                cactus_type = random.randrange(0, 4)
                 cactus_txy.append([cactus[cactus_size][cactus_type], 2500, pad_height - 120])
                 pass
-            elif cactus_type >= 0 and cactus_type <= 5 and cactus_size == 1:
-                cactus_txy.append([cactus[cactus_size][cactus_type], 2500, pad_height - 140])
+            else:
+                cactus_type = random.randrange(0, 6)
+                cactus_txy.append([cactus[cactus_size][cactus_type], 2500, pad_height - 150])
                 pass
+            cactus_cooltime = 0
+            cactus_spawntime = random.randrange(int(40-speed*0.7), int(210-speed*7))
+            pass
+        else:
+            cactus_cooltime += 1
+            pass
+
+        if bird_cooltime == bird_spawntime:
+            bird_txy.append([bird[0], 2500, random.randrange(20, 100), 0])
+            bird_cooltime = 0
+            bird_spawntime = random.randrange(int(200 - speed*0.5), int(400-speed*0.5))
+            pass
+        else:
+            if score > 500:
+                bird_cooltime += 1
+                pass
+            pass
+
+        if cloud_cooltime == cloud_spawntime:
+            cloud_txy.append([cloud, 2500, random.randrange(20, 80)])
+            cloud_cooltime = 0
+            cloud_spawntime = random.randrange(70, 400)
+            pass
+        else:
+            cloud_cooltime += 1
             pass
         
         ground1_x -= speed
@@ -178,9 +328,9 @@ def runGame():
             rex_y_change += 0.7
             pass
         
-        if rex_y > pad_height - 130:
+        if rex_y > pad_height - 138:
             rex_y_change = 0
-            rex_y = pad_height - 130
+            rex_y = pad_height - 138
             rex_canjump = True
             pass
 
@@ -191,6 +341,51 @@ def runGame():
                 if cts[1] < -60:
                     try:
                         cactus_txy.remove(cts)
+                        pass
+                    except:
+                        pass
+                    pass
+                if cts[1] < rex_x + 50 and cts[1] > rex_x and cts[2] > rex_y - 13  and cts[2] < rex_y + 70:
+                    gameovered = True
+                    pass
+                pass
+
+        if not len(bird_txy) == 0:
+            for i, brd in enumerate(bird_txy):
+                brd[1] -= speed * 1.5
+                bird_txy[i][1] = brd[1]
+                bird_txy[i][3] += 1
+                if brd[1] < - 60:
+                    try:
+                        bird_txy.remove(brd)
+                        pass
+                    except:
+                        pass
+                    pass
+                if brd[1] < rex_x + 80 and brd[1] > rex_x and brd[2] > rex_y and brd[2] < rex_y + 90:
+                    gameovered = True
+                    pass
+                if not len(bird_txy) == 0:
+                    if bird_txy[i][3] > 9:
+                        if bird_txy[i][0] == bird[0]:
+                            bird_txy[i][0] = bird[1]
+                            pass
+                        elif bird_txy[i][0] == bird[1]:
+                            bird_txy[i][0] = bird[0]
+                            pass
+                        bird_txy[i][3] = 0
+                        pass
+                    pass
+                pass
+            pass
+
+        if not len(cloud_txy) == 0:
+            for i, cld in enumerate(cloud_txy):
+                cld[1] -= speed * 0.8
+                cloud_txy[i][1]  = cld[1]
+                if cld[1] < -60:
+                    try:
+                        cloud_txy.remove(cld)
                         pass
                     except:
                         pass
@@ -208,8 +403,29 @@ def runGame():
                 drawObject(ct, cx, cy)
                 pass
             pass
+
+        if not len(bird_txy) == 0:
+            for bt, bx, by, bk in bird_txy:
+                drawObject(bt, bx, by)
+                pass
+            pass
+
+        if not len(cloud_txy) == 0:
+            for ct, cx, cy in cloud_txy:
+                drawObject(ct, cx, cy)
+                pass
+            pass
+
+        if gameovered:
+            rex_t = 3
+            pass
         
         drawObject(rex[rex_t], rex_x, rex_y)
+
+        if text_show:
+            drawText(str(score), 50, color.dimgray, pad_width - 10, 15, right)
+            pass
+        
         pygame.display.update()
         clock.tick(60)
         pass
